@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 
 class AppTheme {
   static const Color _primary = Color(0xFF6C63FF); // Modern Indigo
@@ -23,18 +23,18 @@ class AppTheme {
         onSecondary: Colors.white,
         onSurface: Colors.white70,
       ),
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.outfit(
+      textTheme: ThemeData.dark().textTheme.copyWith(
+        displayLarge: const TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
-        titleLarge: GoogleFonts.outfit(
+        titleLarge: const TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
-        bodyLarge: GoogleFonts.outfit(
+        bodyLarge: const TextStyle(
           fontSize: 16,
           color: Colors.white70,
         ),
@@ -80,7 +80,7 @@ class AppTheme {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
     );
