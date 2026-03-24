@@ -52,32 +52,47 @@ class InsightsScreen extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        SizedBox(
-          height: 150,
-          width: 16,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[800],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              FractionallySizedBox(
-                heightFactor: heightFraction,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(8),
+        // Flexible bar container
+        Flexible(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Container(
+                    width: 16,
+                    height: constraints.maxHeight,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-              ),
-            ],
+                  FractionallySizedBox(
+                    heightFactor: heightFraction,
+                    child: Container(
+                      width: 16,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
-        const SizedBox(height: 8),
-        Text(day, style: const TextStyle(fontSize: 12, color: Colors.white60)),
+
+        const SizedBox(height: 4), // reduce spacing slightly
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              day,
+              style: const TextStyle(fontSize: 12, color: Colors.white60),
+            ),
+          ),
+        ),
       ],
     );
   }

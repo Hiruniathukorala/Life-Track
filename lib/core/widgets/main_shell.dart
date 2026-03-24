@@ -70,26 +70,30 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildNavItem({required IconData icon, required String label, required int index}) {
     final isSelected = _currentIndex == index;
-    return InkWell(
-      onTap: () => _onTabTapped(index),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-            ),
-            Text(
-              label,
-              style: TextStyle(
+    return Expanded( 
+      child: InkWell(
+        onTap: () => _onTabTapped(index),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 20,
                 color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-                fontSize: 12,
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -48,14 +48,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: const Text('Hide sensitive details from dashboard'),
             value: _privateMode,
             onChanged: (val) => setState(() => _privateMode = val),
-            activeColor: Theme.of(context).primaryColor,
+            activeThumbColor: Theme.of(context).primaryColor,
           ),
           SwitchListTile(
             title: const Text('Share Weekly Summaries'),
             subtitle: const Text('Allow sharing of aggregated stats'),
             value: _shareSummaries,
             onChanged: (val) => setState(() => _shareSummaries = val),
-            activeColor: Theme.of(context).primaryColor,
+            activeThumbColor: Theme.of(context).primaryColor,
           ),
           
           const Divider(),
@@ -68,7 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: const Text('Remind me at 8:00 PM'),
             value: _notificationsEnabled,
             onChanged: (val) => setState(() => _notificationsEnabled = val),
-            activeColor: Theme.of(context).primaryColor,
+            activeThumbColor: Theme.of(context).primaryColor,
           ),
           
           const Divider(),

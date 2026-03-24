@@ -23,7 +23,7 @@ class HomeDashboard extends StatelessWidget {
             padding: const EdgeInsets.only(right: 16.0),
             child: Row(
               children: [
-                const Icon(Icons.bolt, color: Colors.orangeAsync, size: 20),
+                const Icon(Icons.bolt, color: Colors.orangeAccent, size: 20),
                 const SizedBox(width: 4),
                 Text(
                   '${MockData.currentStreak} Day Streak',
@@ -49,7 +49,7 @@ class HomeDashboard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            ...MockData.recentLogs.map((log) => _buildLogItem(context, log)).toList(),
+            ...MockData.recentLogs.map((log) => _buildLogItem(context, log)),
 
             const SizedBox(height: 24),
             
@@ -59,7 +59,7 @@ class HomeDashboard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            ...MockData.dailyHabits.map((habit) => _buildHabitItem(context, habit)).toList(),
+            ...MockData.dailyHabits.map((habit) => _buildHabitItem(context, habit)),
           ],
         ),
       ),
