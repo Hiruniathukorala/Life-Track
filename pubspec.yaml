@@ -48,6 +48,10 @@ dependencies:
   # AI / Networking
   http: ^1.2.0
 
+  # Local notifications + timezone for habit alarms
+  flutter_local_notifications: ^18.0.0
+  timezone: ^0.9.4
+
 
 
 dev_dependencies:

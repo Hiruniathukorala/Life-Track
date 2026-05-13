@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/services/firestore_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../features/dashboard/screens/home_dashboard.dart';
 import '../../features/insights/screens/insights_screen.dart';
 import '../../features/period_tracker/screens/period_tracker_screen.dart';
@@ -15,19 +18,71 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  final _db = FirestoreService();
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
     super.initState();
-    // Show the AI mood check-in on every app open, after the first frame renders.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) MoodCheckInSheet.showIfNeeded(context);
-      });
+    // Register for app lifecycle events (resume = user brings app to foreground)
+    WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Update streak + reset daily points if new day
+      if (_uid.isNotEmpty) await _db.updateStreak(_uid);
+
+      // Re-schedule every saved alarm on startup — covers the case where
+      // the OS cleared the AlarmManager queue (reboot / force-stop / update).
+      await _rescheduleAllAlarms();
+
+      // Show face mood scan on every cold start
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) await MoodCheckInSheet.showIfNeeded(context);
     });
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Also show face scan when the user brings the app back from background.
+    if (state == AppLifecycleState.resumed) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) MoodCheckInSheet.showIfNeeded(context);
+      });
+    }
+  }
+
+  /// Re-reads all habit alarm documents from Firestore and re-schedules each
+  /// one via NotificationService.  Idempotent — safe to call every launch.
+  Future<void> _rescheduleAllAlarms() async {
+    if (_uid.isEmpty) return;
+    try {
+      final alarms = await _db.habitAlarmsStream(_uid).first;
+      final ns = NotificationService();
+      for (final alarm in alarms) {
+        final habit  = alarm['habit']  as String?;
+        final hour   = alarm['hour']   as int?;
+        final minute = alarm['minute'] as int?;
+        if (habit == null || hour == null || minute == null) continue;
+        await ns.scheduleHabitAlarm(
+          habitName: habit,
+          time: TimeOfDay(hour: hour, minute: minute),
+        );
+      }
+      debugPrint('[MainShell] rescheduled ${alarms.length} alarm(s)');
+    } catch (e) {
+      debugPrint('[MainShell] alarm reschedule error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   final List<Widget> _screens = const [
     HomeDashboard(),
     InsightsScreen(),
@@ -37,11 +92,7 @@ class _MainShellState extends State<MainShell> {
     ProfileScreen(),
   ];
 
-  void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
+  void _onTabTapped(int index) => setState(() => _currentIndex = index);
 
   void _showLoggingModal() {
     showModalBottomSheet(
@@ -96,7 +147,11 @@ class _MainShellState extends State<MainShell> {
           children: <Widget>[
             _buildNavItem(icon: Icons.home_rounded, label: 'Home', index: 0),
             _buildNavItem(icon: Icons.bar_chart_rounded, label: 'Insights', index: 1),
-            _buildNavItem(icon: Icons.favorite_rounded, label: 'Cycle', index: 2, activeColor: const Color(0xFFEC407A)),
+            _buildNavItem(
+                icon: Icons.favorite_rounded,
+                label: 'Cycle',
+                index: 2,
+                activeColor: const Color(0xFFEC407A)),
             const SizedBox(width: 48), // Space for FAB
             _buildNavItem(icon: Icons.emoji_events_rounded, label: 'Awards', index: 3),
             _buildNavItem(icon: Icons.group_rounded, label: 'Family', index: 4),
@@ -107,10 +162,17 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavItem({required IconData icon, required String label, required int index, Color? activeColor}) {
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    Color? activeColor,
+  }) {
     final isSelected = _currentIndex == index;
-    final color = isSelected ? (activeColor ?? Theme.of(context).primaryColor) : Colors.grey.withOpacity(0.6);
-    return Expanded( 
+    final color = isSelected
+        ? (activeColor ?? Theme.of(context).primaryColor)
+        : Colors.grey.withOpacity(0.6);
+    return Expanded(
       child: InkWell(
         onTap: () => _onTabTapped(index),
         borderRadius: BorderRadius.circular(12),
@@ -119,16 +181,12 @@ class _MainShellState extends State<MainShell> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isSelected ? icon : _getOutlineIcon(icon), 
-                size: 24, 
-                color: color
-              ),
+              Icon(isSelected ? icon : _getOutlineIcon(icon), size: 24, color: color),
               const SizedBox(height: 2),
               Text(
                 label,
                 style: TextStyle(
-                  color: color, 
+                  color: color,
                   fontSize: 10,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
@@ -141,12 +199,12 @@ class _MainShellState extends State<MainShell> {
   }
 
   IconData _getOutlineIcon(IconData icon) {
-    if (icon == Icons.home_rounded) return Icons.home_outlined;
-    if (icon == Icons.bar_chart_rounded) return Icons.bar_chart_outlined;
-    if (icon == Icons.favorite_rounded) return Icons.favorite_outline_rounded;
+    if (icon == Icons.home_rounded)        return Icons.home_outlined;
+    if (icon == Icons.bar_chart_rounded)   return Icons.bar_chart_outlined;
+    if (icon == Icons.favorite_rounded)    return Icons.favorite_outline_rounded;
     if (icon == Icons.emoji_events_rounded) return Icons.emoji_events_outlined;
-    if (icon == Icons.group_rounded) return Icons.group_outlined;
-    if (icon == Icons.person_rounded) return Icons.person_outline_rounded;
+    if (icon == Icons.group_rounded)       return Icons.group_outlined;
+    if (icon == Icons.person_rounded)      return Icons.person_outline_rounded;
     return icon;
   }
 }

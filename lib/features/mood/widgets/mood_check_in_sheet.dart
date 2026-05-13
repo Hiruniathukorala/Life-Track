@@ -19,9 +19,26 @@ class MoodCheckInSheet extends StatefulWidget {
   @override
   State<MoodCheckInSheet> createState() => _MoodCheckInSheetState();
 
-  static Future<void> showIfNeeded(BuildContext context) async {
+  /// Shows the mood scan sheet every time the app opens.
+  /// Manual tap from mood card uses [force] = true (same behaviour, kept for API compat).
+  static Future<void> showIfNeeded(BuildContext context,
+      {bool force = false}) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+
+    // If the user has never completed their profile (no name set), silently
+    // skip the scan on auto-trigger — the AI would have no context and the
+    // result would be meaningless.  Manual taps (force = true) always show.
+    if (!force) {
+      final db      = FirestoreService();
+      final profile = await db.userProfileStream(uid).first;
+      final name    = profile?['name'] as String?;
+      if (name == null || name.trim().isEmpty) return;
+    }
+
+    // No cooldown — scan fires on every app open so the user always gets a
+    // fresh mood reading.  The Firestore save in _saveMood() still writes
+    // lastMoodDate so the history / insights pages have accurate data.
     if (!context.mounted) return;
     await showModalBottomSheet(
       context: context,
@@ -158,6 +175,9 @@ class _MoodCheckInSheetState extends State<MoodCheckInSheet>
     } catch (e) {
       debugPrint('[Camera] $e');
     } finally {
+      // Set _cameraReady = false BEFORE disposing so Flutter's next frame
+      // renders the fallback container instead of CameraPreview on a dead controller.
+      if (mounted) setState(() => _cameraReady = false);
       await _cameraController?.dispose();
       _cameraController = null;
     }
@@ -262,8 +282,48 @@ class _MoodCheckInSheetState extends State<MoodCheckInSheet>
     if (!mounted) return;
     _dismissTimer?.cancel();
     setState(() => _saving = true);
-    try { await _db.saveMoodEntry(_uid, mood.toMap()); } catch (_) {}
+    try {
+      // Always save to normal moods collection
+      await _db.saveMoodEntry(_uid, mood.toMap());
+
+      // If period is currently active → also save to period_moods
+      final periodData = await _db.periodDataStream(_uid).first;
+      if (periodData != null && periodData['isPeriodActive'] == true) {
+        final cycleDay = _computeCycleDay(periodData);
+        final symptoms = (periodData['symptoms'] as Map<String, dynamic>?)
+                ?.entries
+                .where((e) => e.value == true)
+                .map((e) => e.key)
+                .toList() ??
+            [];
+        await _db.savePeriodMoodEntry(_uid, mood.toMap(), {
+          'cycleDay':      cycleDay,
+          'flowIntensity': periodData['flowIntensity'] ?? 0,
+          'symptoms':      symptoms,
+          'phase':         _phaseFromCycleDay(
+              cycleDay, (periodData['periodLength'] as num?)?.toInt() ?? 5),
+        });
+      }
+    } catch (e) {
+      debugPrint('[MoodSheet] save error: $e');
+    }
     if (mounted) Navigator.pop(context);
+  }
+
+  int _computeCycleDay(Map<String, dynamic> periodData) {
+    final startStr    = periodData['lastPeriodStart'] as String?;
+    final cycleLength = (periodData['cycleLength'] as num?)?.toInt() ?? 28;
+    if (startStr == null) return 1;
+    final start = DateTime.tryParse(startStr) ?? DateTime.now();
+    final diff  = DateTime.now().difference(start).inDays;
+    return (diff % cycleLength) + 1;
+  }
+
+  String _phaseFromCycleDay(int day, int periodLength) {
+    if (day <= periodLength) return 'Menstrual';
+    if (day <= 13) return 'Follicular';
+    if (day <= 15) return 'Ovulation';
+    return 'Luteal';
   }
 
   Future<void> _refineWithText() async {

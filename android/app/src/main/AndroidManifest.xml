@@ -1,5 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- USE_EXACT_ALARM: API 33+ only (Android 13+). On older devices this is
+         silently ignored. Grants unconditional exact-alarm access without a
+         settings prompt — suitable for a health / habit app. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
+        android:minSdkVersion="33"/>
+    <!-- SCHEDULE_EXACT_ALARM: API 31–32 (Android 12). Requires user to grant
+         via Settings on some OEMs; AlarmManager falls back to inexact on denial. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:minSdkVersion="31"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Required for fullScreenIntent (alarm rings on lock screen) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <application
         android:label="LifeTrack"
         android:name="${applicationName}"
@@ -26,6 +42,31 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- flutter_local_notifications receivers -->
+        <!--
+          ScheduledNotificationReceiver: receives the AlarmManager PendingIntent.
+          Must be exported=false (same app only) but accessible to AlarmManager.
+        -->
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
+        <!--
+          ScheduledNotificationBootReceiver: reschedules alarms after boot /
+          package-replace / power events.  ACTION_LOCKED_BOOT_COMPLETED is added
+          for Direct Boot devices (Samsung encrypted restart).
+        -->
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.POWER_CONNECTED"/>
+                <action android:name="android.intent.action.POWER_DISCONNECTED"/>
+            </intent-filter>
+        </receiver>
+        <!-- ActionReceiver: handles notification button actions -->
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/notification_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'core/widgets/main_shell.dart';
 
@@ -11,9 +12,10 @@ void main() async {
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   } catch (e) {
-    // Firebase already initialized or error — continue
     debugPrint('Firebase init: $e');
   }
+  // Init local notifications (habit alarms)
+  await NotificationService().init();
   runApp(const LifeTrackApp());
 }
 

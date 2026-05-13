@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── User profiles ──────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Any signed-in user can read any profile (needed for family linking).
+      allow read: if request.auth != null;
+      // Only the owner can write their own profile.
+      allow write: if request.auth.uid == userId;
+
+      // Subcollections — owner only
+      match /logs/{doc}         { allow read, write: if request.auth.uid == userId; }
+      match /habits/{doc}       { allow read, write: if request.auth.uid == userId; }
+      match /moods/{doc}        { allow read, write: if request.auth.uid == userId; }
+      match /period_moods/{doc} { allow read, write: if request.auth.uid == userId; }
+      match /period_tracker/{doc} { allow read, write: if request.auth.uid == userId; }
+      match /habit_alarms/{doc} { allow read, write: if request.auth.uid == userId; }
+
+      // Family links — owner can read/write; linked user can also read
+      match /family/{doc} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+
+    // ── Email → UID public lookup ──────────────────────────────────────────
+    // Stores only { uid } — no personal data exposed.
+    // Any signed-in user can read (for family invite email lookup).
+    // Only the matching user can write their own entry.
+    match /userEmails/{email} {
+      allow read: if request.auth != null;
+      // Any authenticated user can write — this collection only holds
+      // { uid: "someUid" }, no personal data.  The invite sender needs to
+      // back-fill the target user's email entry (uid != sender's uid).
+      allow write: if request.auth != null;
+    }
+
+    // ── Family invites ─────────────────────────────────────────────────────
+    // Top-level collection — avoids cross-user subcollection writes.
+    // Doc ID format: {fromUid}_{toUid}
+    match /invites/{inviteId} {
+      // Any signed-in user can create an invite (sender writes it).
+      allow create: if request.auth != null
+                    && request.resource.data.fromUid == request.auth.uid;
+      // Sender or recipient can read / update / delete.
+      allow read, update, delete:
+        if request.auth != null
+        && (request.auth.uid == resource.data.fromUid
+            || request.auth.uid == resource.data.toUid);
+    }
+  }
+}

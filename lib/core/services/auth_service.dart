@@ -10,7 +10,13 @@ class AuthService {
 
   Future<String?> signIn(String email, String password) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final cred = await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
+      // Keep the userEmails lookup in sync for existing accounts that
+      // pre-date the collection. updateUserProfile is idempotent.
+      await _db.updateUserProfile(cred.user!.uid, {
+        'email': email.trim().toLowerCase(),
+      });
       return null;
     } on FirebaseAuthException catch (e) {
       return _errorMessage(e.code);
